@@ -18,7 +18,7 @@ class BabiesDegenFlipTx :
     def get_tx_from_wallet(self, date_from = "2022-02-26 19:00:00", date_to = pd.to_datetime("today"), only_tx_hash = True, every_tx = False):
         """Get the last 10 000 transactions hash/info from a wallet trough elrond api between two dates"""
 
-        size = get_number_of_tx_by_wallet(self.wallet , date_from, date_to)
+        size = self.get_number_of_tx_by_wallet(self.wallet ,date_from, date_to)
         date_from = pd.Timestamp(date_from).timestamp()
         date_to = pd.Timestamp(date_to).timestamp()
 
@@ -91,16 +91,15 @@ class BabiesDegenFlipTx :
         return dt_tx
 
     def get_number_of_tx_by_wallet(self, wallet,date_from, date_to):
-
         date_from = pd.Timestamp(date_from).timestamp()
         date_to = pd.Timestamp(date_to).timestamp()
 
-        URL = f"https://api.elrond.com/accounts/{self.wallet}/transactions/"
+        URL = f"https://api.elrond.com/accounts/{wallet}/transactions/"
 
         params = {
             "status": "success", #succes, pending,
             "before" : int(date_to),
-            "after" : int(date_from),
+            "after" : int(date_from)
         }
         return requests.get(URL + "count", params).json()
 
