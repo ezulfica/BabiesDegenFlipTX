@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
-#import requests
-import faster_than_requests as requests
+import requests
 import time
 from alive_progress import alive_bar
 from os.path import exists
