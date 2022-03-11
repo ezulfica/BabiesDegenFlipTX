@@ -161,12 +161,12 @@ class BabiesDegenFlipTx :
 
     def export_data(self, name) :
         self.wallet_tx.sort_values(by="timestamp", ascending=False, inplace=True)
-        self.wallet_tx.to_json(name, orient = "split", indent = 1, date_format='iso')
+        self.wallet_tx.to_json(name, orient = "records", indent = 1, date_format='iso')
         print(".json database saved !")
 
     def update_data(self, name):
         if exists(name) :
-            dt_tx = pd.read_json(name, orient = "split")
+            dt_tx = pd.read_json(name, orient = "records")
             self.wallet_tx = pd.concat([dt_tx, self.wallet_tx], axis = 0)
             self.wallet_tx = self.wallet_tx.drop_duplicates("txHash")
             self.wallet_tx.drop(columns= ["win_streak"], inplace = True)
