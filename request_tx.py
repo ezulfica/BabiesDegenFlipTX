@@ -1,22 +1,27 @@
 import numpy as np
 import pandas as pd
-import requests
+#import requests
+import faster_than_requests as requests
 import time
+from alive_progress import alive_bar
+from os.path import exists
 
 pd.set_option('display.float_format', lambda x: '%.8f' % x)
+
 class BabiesDegenFlipTx :
 
     """Class of function used to pull data from elrond API"""
 
-    def __init__(self, wallet, date_to, date_from):
-        self.wallet = wallet
+    def __init__(self, date_to, date_from):
+        self.wallet = ["erd1qqqqqqqqqqqqqpgqvza50nx0pvr6mkylt7n62wt77hzt5z9a7m2qg84rws",
+                       "erd1qqqqqqqqqqqqqpgqgsuezj5g342sk4gy634pnv6v50tucnts7m2qevc5hc"]
         self.DAO_Wallet = "erd1wtwuwretnf3xlvklfs8s0ljv30u0f2nmtwpc47emdhv4s923k00s353qsu"
         self.WoL = True
         self.date_from = pd.Timestamp(date_from).timestamp()
         self.date_to = pd.Timestamp(date_to).timestamp()
 
-    def get_tx_from_wallet(self, every_tx = False):
-        """Get the last 10 000 transactions or every hash/info from a wallet trough elrond api between two dates"""
+    def get_wallet_tx(self, wallet):
+        """Get all transaction from a wallet, between the defined date"""
 
         params = {
             "status": "success",  # succes, pending,
@@ -24,17 +29,26 @@ class BabiesDegenFlipTx :
             "after": int(self.date_from),
         }
 
-        URL = f"https://api.elrond.com/accounts/{self.wallet}/transactions/"
+        URL = f"https://api.elrond.com/accounts/{wallet}/transactions/"
 
         size = requests.get(URL + "count", params).json()
+
         params["size"] = (size > 10000) * 10000 + size * (size <= 10000)
 
-        if every_tx:
-            gcd = size // 10000 + 1  # +1 to make sure I get all tx even if duplicates
+        gcd = size // 10000 + 1
+        if gcd > 1 :
             all_tx = pd.DataFrame()
             for j in range(gcd):
-                tx_inf = pd.DataFrame(requests.get(URL, params).json())
-                time.sleep(2)
+
+                got_tx = False
+                while got_tx == False :
+                    try :
+                        tx_inf = pd.DataFrame(requests.get(URL, params).json())
+                        got_tx = True
+                    except :
+                        time.sleep(2)
+                        got_tx = False
+
                 date_to = tx_inf["timestamp"][len(tx_inf) - 1]
                 params["before"] = date_to
                 all_tx = pd.concat([all_tx, tx_inf], axis=0)
@@ -44,12 +58,25 @@ class BabiesDegenFlipTx :
             all_tx = pd.DataFrame(requests.get(URL, params).json())
 
         #Keep only the tx where the flip smart contract applies
-        all_tx = all_tx[all_tx["action"] == {'category': 'scCall', 'name': 'play'}]
-        #Remove the row when DAO Wallet is the sender (assuming these transactions are to test the smart contract)
-        #all_tx = all_tx[all_tx["sender"] != self.DAO_Wallet]
-        all_tx = all_tx[["txHash", "sender", "value", "receiver", "timestamp"]]
-        self.wallet_tx = all_tx
-        print("Transaction scrapped !")
+        if len(all_tx) >= 1 :
+            all_tx = all_tx[all_tx["action"] == {'category': 'scCall', 'name': 'play'}]
+            all_tx = all_tx[["txHash", "sender", "value", "receiver", "timestamp"]]
+            all_tx["value"] = all_tx["value"].astype("float")
+            all_tx["value"] = all_tx["value"] / 10 ** 18
+            all_tx["timestamp"] = pd.to_datetime(all_tx["timestamp"], unit='s')
+            all_tx["fees"] = all_tx["value"] * 0.05
+
+        return(all_tx)
+
+    def get_all_tx(self):
+        dt_tx = pd.DataFrame()
+        for wallet in self.wallet :
+            dt = self.get_wallet_tx(wallet)
+            dt_tx = pd.concat([dt, dt_tx], axis = 0)
+
+        dt_tx.sort_values(by="timestamp", ascending=False)
+        self.wallet_tx = dt_tx
+        print("Transactions scrapped !")
 
     def get_sc_results_from_tx(self) :
         dt_tx = pd.DataFrame()
@@ -98,54 +125,55 @@ class BabiesDegenFlipTx :
         if self.WoL :
             URL = f"https://api.elrond.com/transactions/"
             win_lose = []
-            for txhash in self.wallet_tx["txHash"] :
-                got_sc = False
-                while got_sc == False:
-                    try:
-                        results = len(requests.get(URL + txhash).json()["results"])
-                        got_sc = True
-                    except:
-                        time.sleep(0.5)
-                        got_sc = False
+            with alive_bar(len(self.wallet_tx), force_tty=True) as bar :
+                for txhash in self.wallet_tx["txHash"] :
+                    got_sc = False
+                    while got_sc == False:
+                        try:
+                            results = len(requests.get(URL + txhash).json()["results"])
+                            got_sc = True
+                        except:
+                            time.sleep(0.5)
+                            got_sc = False
 
-                win_lose.append((results == 2) * False + (results == 3) * True)
+                    win_lose.append((results == 2) * False + (results == 3) * True)
+                    bar()
 
             win_lose = np.array(win_lose)
-            self.wallet_tx["status"] = win_lose
+            self.wallet_tx["status"] = np.uint8(win_lose)
+            self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"]) + \
+                                        (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.9
+
             print("Win/Loose status added !")
 
     def get_winstreak(self):
-        players = self.wallet_tx[self.wallet_tx["sender"] != self.wallet]
+        players = self.wallet_tx[~self.wallet_tx["sender"].isin(self.wallet)]["sender"].unique()
         streak = []
         for player in players :
-            #win_status = self.wallet_tx[self.wallet_tx["sender"] == player]["status"]
-            win_status = all_tx[all_tx["sender"] == player]["status"]
+            win_status = self.wallet_tx[self.wallet_tx["sender"] == player]["status"]
             win_streak = (win_status != win_status.shift()).cumsum()
             win_streak = np.max(win_status.groupby(win_streak).cumsum())
             streak.append(win_streak)
 
         player_win = pd.DataFrame({"sender" : players, "win_streak" : streak})
         self.wallet_tx = self.wallet_tx.merge(player_win, on = "sender")
-
         print("Longest win-streak per player added to database !")
 
 
-    def export_data(self, name):
-        self.wallet_tx["value"] = self.wallet_tx["value"].astype(np.int64) / 10**18 #to get the correct amount of egld
-        self.wallet_tx["timestamp"] = pd.to_datetime(self.wallet_tx["timestamp"], unit='s') #to change the unix timestamp into UTC timestamp
-        self.vallet_tx["fees"] = self.wallet_tx["value"].astype(np.int64) * 0.05
-        self.wallet_tx.to_json(name)
+    def export_data(self, name) :
+        self.wallet_tx.sort_values(by="timestamp", ascending=False, inplace=True)
+        self.wallet_tx.to_json(name, orient = "split", indent = 1, date_format='iso')
         print(".json database saved !")
 
     def update_data(self, name):
-        try :
-            dt_tx = pd.read_json(name)
+        if exists(name) :
+            dt_tx = pd.read_json(name, orient = "split")
             self.wallet_tx = pd.concat([dt_tx, self.wallet_tx], axis = 0)
-            self.wallet_tx = self.wallet_tx.drop_duplicates("txHash", keep = False)
-            self.wallet_tx.drop("win_streak", inplace = True)
+            self.wallet_tx = self.wallet_tx.drop_duplicates("txHash")
+            self.wallet_tx.drop(columns= ["win_streak"], inplace = True)
+            self.wallet_tx.sort_values(by = "timestamp", ascending = False, inplace = True)
             self.get_winstreak()
             self.export_data(name)
-
-        except :
+        else :
             print(".json file not found, creating a new one")
             self.export_data(name)
