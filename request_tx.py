@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import concurrent
 from tqdm import tqdm
 from os.path import exists
 
@@ -108,12 +109,12 @@ class BabiesDegenFlipTx:
                 for _ in as_completed(win_lose) :
                     pbar.update(1)
 
-        win_lose = [wl.result() for wl in win_lose]
+        win_lose = np.array([wl.result() for wl in win_lose])
 
-        self.wallet_tx["status"] = np.array(win_lose)
+        self.wallet_tx["status"] = (win_lose == 2) * False + (win_lose == 3) * True
 
         #The balance of player, if every tx is a win, we multiply by 0.9 (what's gained) or substract by the value bet
-        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"]) + \
+        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) * (-0.95) + \
                                     (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.9
 
         print("Win/Loose status added !")
@@ -123,10 +124,15 @@ class BabiesDegenFlipTx:
         Function used to for the multi threading request to get transactions win or lose
         After getting number of a smart contract result (2 or 3) we return a boolean as win/lose
         """
+        get_sc = False
+        while get_sc == False :
+            try :
+                wl = len(session.get(url=url).json()["results"])
+                get_sc = True
+            except :
+                time.sleep(0.1)
 
-        wl = len(session.get(url=url).json()["results"])
-        time.sleep(0.1)
-        return (wl == 2) * False + (wl == 3) * True
+        return wl
 
     def get_winstreak(self):
 
@@ -176,43 +182,3 @@ class BabiesDegenFlipTx:
         else :
             print(".json file not found, creating a new one")
             self.export_data(name)
-
-
-    # def get_sc_results_from_tx(self) :
-    #     dt_tx = pd.DataFrame()
-    #     for tx in self.wallet_tx["txHash"] :
-    #         got_sc = False
-    #         while got_sc == False :
-    #             try:
-    #                 req_tx = requests.get("https://api.elrond.com/transactions/" + tx).json()["results"]
-    #                 got_sc = True
-    #             except:
-    #                 time.sleep(2)
-    #                 got_sc = False
-    #
-    #         tx_result = pd.DataFrame(req_tx)
-    #
-    #         tx_result.drop(columns=["nonce", "gasLimit", "gasPrice", "data",
-    #                                 "callType", "miniBlockHash"],
-    #                        inplace=True)
-    #
-    #         tx_result.rename(columns={"hash": "txHash"}, inplace=True)
-    #         tx_result["status"] = (len(tx_result) == 3) * True + (len(tx_result) == 2) * False
-    #
-    #         #At the end of every transaction, we append the row collected
-    #         dt_tx = pd.concat([dt_tx, tx_result], axis=0)
-    #
-    #     win_lose = dt_tx[["originalTxHash", "status"]].\
-    #         drop_duplicates(subset = "originalTxHash").\
-    #         rename(columns={"originalTxHash" : "txHash"})
-    #
-    #     dt_tx.drop(columns="status", inplace = True)
-    #
-    #     dt_tx = pd.concat([all_tx, dt_tx], axis = 0)
-    #     dt_tx["prevTxHash"] = dt_tx["prevTxHash"].fillna(dt_tx["txHash"])
-    #     dt_tx["originalTxHash"] = dt_tx["originalTxHash"].fillna(dt_tx["txHash"])
-    #     dt_tx = dt_tx.merge(win_lose, on = "txHash")
-    #
-    #     self.wallet_tx = dt_tx
-    #     self.WoL = False
-    #     print("Smart contract results scrapped !")
