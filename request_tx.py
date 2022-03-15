@@ -114,7 +114,7 @@ class BabiesDegenFlipTx:
         self.wallet_tx["status"] = (win_lose == 2) * False + (win_lose == 3) * True
 
         #The balance of player, if every tx is a win, we multiply by 0.9 (what's gained) or substract by the value bet
-        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) * (-0.95) + \
+        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) + \
                                     (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.9
 
         print("Win/Loose status added !")
@@ -124,14 +124,17 @@ class BabiesDegenFlipTx:
         Function used to for the multi threading request to get transactions win or lose
         After getting number of a smart contract result (2 or 3) we return a boolean as win/lose
         """
-        get_sc = False
-        while get_sc == False :
-            try :
-                wl = len(session.get(url=url).json()["results"])
-                get_sc = True
-            except :
-                time.sleep(0.1)
 
+        # get_sc = False
+        # while get_sc == False :
+        #     try :
+        #         wl = len(session.get(url=url).json()["results"])
+        #         get_sc = True
+        #     except :
+        #         time.sleep(0.0001)
+
+        wl = len(session.get(url=url).json()["results"])
+        time.sleep(0.5)
         return wl
 
     def get_winstreak(self):
@@ -150,6 +153,7 @@ class BabiesDegenFlipTx:
 
         player_win = pd.DataFrame({"sender" : players, "win_streak" : streak})
         self.wallet_tx = self.wallet_tx.merge(player_win, on = "sender")
+
         print("Longest win-streak per player added to database !")
 
 
