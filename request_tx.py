@@ -125,16 +125,14 @@ class BabiesDegenFlipTx:
         After getting number of a smart contract result (2 or 3) we return a boolean as win/lose
         """
 
-        # get_sc = False
-        # while get_sc == False :
-        #     try :
-        #         wl = len(session.get(url=url).json()["results"])
-        #         get_sc = True
-        #     except :
-        #         time.sleep(0.0001)
+        get_sc = False
+        while get_sc == False :
+            try :
+                wl = len(session.get(url=url).json()["results"])
+                get_sc = True
+            except :
+                get_sc = False
 
-        wl = len(session.get(url=url).json()["results"])
-        time.sleep(0.5)
         return wl
 
     def get_winstreak(self):
