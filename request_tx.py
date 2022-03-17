@@ -3,7 +3,6 @@ import pandas as pd
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import concurrent
 from tqdm import tqdm
 from os.path import exists
 
@@ -178,6 +177,7 @@ class BabiesDegenFlipTx:
             #update of winstreak results
             self.wallet_tx.drop(columns= ["win_streak"], inplace = True)
             self.wallet_tx.sort_values(by = "timestamp", ascending = False, inplace = True)
+            print("updating winstreak records")
             self.get_winstreak()
 
             self.export_data(name)
