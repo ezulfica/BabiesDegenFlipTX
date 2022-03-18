@@ -46,6 +46,6 @@ BDF.update_data(name = "BabiesDegenFlipTX.json")
 
 ## PowerBi Dashboard
 
-A python dashboard has been made. You can update the data, change the graphics however you want. Focus on a player in particulary, etc. 
+A powerbi dashboard has been made. You can update the data, change the graphics however you want. Focus on a player in particulary, etc. 
 
 ![img_1.png](img_readme/powerbi_babies.png)
