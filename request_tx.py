@@ -113,8 +113,8 @@ class BabiesDegenFlipTx:
         self.wallet_tx["status"] = (win_lose == 2) * False + (win_lose == 3) * True
 
         #The balance of player, if every tx is a win, we multiply by 0.9 (what's gained) or substract by the value bet
-        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) + \
-                                    (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.9
+        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) * 0.95 + \
+                                    (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.95
 
         print("Win/Loose status added !")
 
@@ -141,14 +141,17 @@ class BabiesDegenFlipTx:
         """
 
         players = self.wallet_tx[~self.wallet_tx["sender"].isin(self.wallet)]["sender"].unique()
-        streak = []
-        for player in players :
+        wstreak = []
+        lstreak = []
+        for player in players:
             win_status = self.wallet_tx[self.wallet_tx["sender"] == player]["status"]
             win_streak = (win_status != win_status.shift()).cumsum()
+            lose_streak = np.max((win_status == 0).groupby(win_streak).cumsum())
             win_streak = np.max(win_status.groupby(win_streak).cumsum())
-            streak.append(win_streak)
+            wstreak.append(win_streak)
+            lstreak.append(lose_streak)
 
-        player_win = pd.DataFrame({"sender" : players, "win_streak" : streak})
+        player_win = pd.DataFrame({"sender": players, "win_streak": wstreak, "lose_streak": lstreak})
         self.wallet_tx = self.wallet_tx.merge(player_win, on = "sender")
 
         print("Longest win-streak per player added to database !")
@@ -175,7 +178,7 @@ class BabiesDegenFlipTx:
             self.wallet_tx = self.wallet_tx.drop_duplicates("txHash") #remove duplicates if there is (the transaction hash is unique)
 
             #update of winstreak results
-            self.wallet_tx.drop(columns= ["win_streak"], inplace = True)
+            self.wallet_tx.drop(columns= ["win_streak", "lose_streak"], inplace = True)
             self.wallet_tx.sort_values(by = "timestamp", ascending = False, inplace = True)
             print("updating winstreak records")
             self.get_winstreak()
