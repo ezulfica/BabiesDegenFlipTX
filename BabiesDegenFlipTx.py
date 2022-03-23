@@ -2,8 +2,8 @@
 from request_tx import BabiesDegenFlipTx
 
 #select the period
-date_from = "2022-03-22 16:00:00"
-date_to = "2022-03-22 19:00:00"
+date_from = "2022-03-23 00:00:00"
+date_to = "2022-03-23 22:00:00"
 
 BDF = BabiesDegenFlipTx(date_to = date_to, date_from = date_from) #Starting session to scrap data from BabiesDegenFlip
 
