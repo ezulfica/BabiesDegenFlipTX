@@ -15,7 +15,8 @@ class BabiesDegenFlipTx:
     def __init__(self, date_to, date_from):
 
         self.wallet = ["erd1qqqqqqqqqqqqqpgqvza50nx0pvr6mkylt7n62wt77hzt5z9a7m2qg84rws", #First flip wallet adress
-                       "erd1qqqqqqqqqqqqqpgqgsuezj5g342sk4gy634pnv6v50tucnts7m2qevc5hc"] #New flip wallet adress
+                       "erd1qqqqqqqqqqqqqpgqgsuezj5g342sk4gy634pnv6v50tucnts7m2qevc5hc",
+                       "erd1qqqqqqqqqqqqqpgq50xjmqtqcc03r6p9eyj0dgsq9fmr5mln7m2qqymc3u"] #last flip wallet adress
         self.DAO_Wallet = "erd1wtwuwretnf3xlvklfs8s0ljv30u0f2nmtwpc47emdhv4s923k00s353qsu" #DAO wallet adress
         self.date_from = pd.Timestamp(date_from).timestamp()
         self.date_to = pd.Timestamp(date_to).timestamp()
@@ -62,12 +63,22 @@ class BabiesDegenFlipTx:
 
         #Keep only the tx where the flip smart contract applies
         if len(all_tx) >= 1 :
-            all_tx = all_tx[all_tx["action"] == {'category': 'scCall', 'name': 'play'}] #keeping only the transaction linked to the flip game
-            all_tx = all_tx[["txHash", "sender", "value", "receiver", "timestamp"]] #keeping the following columns
-            all_tx["value"] = all_tx["value"].astype("float") #settings value as a number (it's EGLD values)
-            all_tx["value"] = all_tx["value"] / 10 ** 18 #diving it to get the right value
-            all_tx["timestamp"] = pd.to_datetime(all_tx["timestamp"], unit='s') #convert unix timestamp to an easier date format
-            all_tx["fees"] = all_tx["value"] * 0.05 #getting the 5% fees
+            # keeping only the transaction linked to the flip game
+            all_tx = all_tx[all_tx["action"] == {'category': 'scCall', 'name': 'play'}]
+            # keeping the following columns
+            all_tx = all_tx[["txHash", "sender", "value", "receiver", "timestamp", "data"]]
+            # settings value as a number (it's EGLD values)
+            all_tx["value"] = all_tx["value"].astype("float")
+            # dividing it by 10^18 to get the right value
+            all_tx["value"] = all_tx["value"] / 10 ** 18
+            # convert unix timestamp to an easier date format
+            all_tx["timestamp"] = pd.to_datetime(all_tx["timestamp"], unit='s')
+            # getting the 5% fees
+            all_tx["fees"] = all_tx["value"] * 0.05
+            #Describing the card choosen
+            all_tx["card"] = np.array(all_tx["data"].apply(lambda x: 'b' if x == 'cGxheUA=' else 'r'))
+            #removing the "data" column
+            all_tx.drop(columns="data", inplace=True)
 
         return(all_tx)
 
@@ -113,8 +124,11 @@ class BabiesDegenFlipTx:
         self.wallet_tx["status"] = (win_lose == 2) * False + (win_lose == 3) * True
 
         #The balance of player, if every tx is a win, we multiply by 0.9 (what's gained) or substract by the value bet
-        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) * 0.95 + \
-                                    (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.95
+        self.wallet_tx["balance"] = (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"] ) * 0.95 * (self.wallet_tx["receiver"].isin(self.wallet[:2])) + \
+                                    (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.95 * (self.wallet_tx["receiver"].isin(self.wallet[:2])) + \
+                                    (self.wallet_tx["status"] == 0) * (- self.wallet_tx["value"]) * 0.94 * (self.wallet_tx["receiver"] == self.wallet[2]) + \
+                                    (self.wallet_tx["status"] == 1) * (self.wallet_tx["value"]) * 0.94 * (self.wallet_tx["receiver"] == self.wallet[2])
+
 
         print("Win/Loose status added !")
 
