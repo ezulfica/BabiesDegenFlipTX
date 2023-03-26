@@ -34,7 +34,7 @@ print("\nWin/Lose status :")
 #getting sc results for every tx, then deciding if win or lose according to it
 BDF.get_wallet_WoL(thread = 150) 
 
-#get the maximum winstreak per player
+#get the maximum winstreak for every player
 BDF.get_winstreak()
 
 #export data in a .json database
