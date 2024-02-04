@@ -14,7 +14,7 @@ DISCLAIMER : I'm not inciting to play ! Gambling is a risk and a responsability.
 ## Python setup
 
 ```bash
-$git clone https://github.com/ZnyBD/BabiesDegenFlipTX.git
+$git clone https://github.com/ezulfica/BabiesDegenFlipTX.git
 ```
 
 ## Usage
