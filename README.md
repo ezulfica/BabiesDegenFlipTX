@@ -1,6 +1,6 @@
 # BabiesDegenFlipTx
 
-BabiesDegenFlipTx is a Python class used to pull data from Elrond Blockchain for the flip game of the NFT project BabiesDegenApe : 
+BabiesDegenFlipTx is a Python app used to pull data from Elrond Blockchain for the flip game of the NFT project BabiesDegenApe : 
 https://www.babiesdegenapeflip.com/
 
 DISCLAIMER : I'm not inciting to play ! Gambling is a risk and a responsability. Be careful. 
